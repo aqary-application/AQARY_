@@ -52,6 +52,8 @@ class _FiltersScreenState extends State<FiltersScreen> {
       _sizeRange = const RangeValues(0, 10000);
       _selectedLandTypes = [];
     });
+    // نرجع للـ home screen مع فلاتر فارغة مباشرة
+    Navigator.of(context).pop(<String, dynamic>{});
   }
 
   void _apply() {

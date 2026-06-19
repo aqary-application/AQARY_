@@ -85,7 +85,10 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen>
     try {
       final result = await ListingService.instance.getListings(
         area: _filters['area'],
-        landType: _filters['landType'],
+        landType: _filters['landTypes'] != null &&
+                (_filters['landTypes'] as List).isNotEmpty
+            ? (_filters['landTypes'] as List).first as String
+            : _filters['landType'],
         minPrice: _filters['minPrice']?.toDouble(),
         maxPrice: _filters['maxPrice']?.toDouble(),
         minSize: _filters['minSize']?.toDouble(),
@@ -730,8 +733,6 @@ class _Chip extends StatelessWidget {
               fontWeight: FontWeight.w500)));
 }
 
-
-
 class _ModernPricePin extends StatelessWidget {
   final String price;
   final bool isSelected;
@@ -740,13 +741,11 @@ class _ModernPricePin extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     final color = isSelected ? AppTheme.accent : AppTheme.primary;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-       
         AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),

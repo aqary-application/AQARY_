@@ -131,6 +131,32 @@ exports.onLogout = functions.https.onCall(async (data, context) => {
 
 // ─── getListings ──────────────────────────────────────────────────────────────
 
+// إحداثيات مراكز المحافظات الأردنية
+const GOVERNORATE_CENTERS = {
+  Amman: { lat: 31.9539, lng: 35.9106, radiusKm: 40 },
+  Zarqa: { lat: 32.0728, lng: 36.0878, radiusKm: 25 },
+  Irbid: { lat: 32.5556, lng: 35.85, radiusKm: 30 },
+  Aqaba: { lat: 29.5321, lng: 35.0063, radiusKm: 25 },
+  Madaba: { lat: 31.7167, lng: 35.7933, radiusKm: 20 },
+  Karak: { lat: 31.1833, lng: 35.7, radiusKm: 25 },
+  Salt: { lat: 32.0392, lng: 35.7275, radiusKm: 20 },
+  Mafraq: { lat: 32.3429, lng: 36.2035, radiusKm: 30 },
+};
+
+// حساب المسافة بين نقطتين بالكيلومتر (Haversine)
+function distanceKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 exports.getListings = functions.https.onCall(async (data, context) => {
   if (!context.auth)
     throw new functions.https.HttpsError("unauthenticated", "Login required");
@@ -148,14 +174,30 @@ exports.getListings = functions.https.onCall(async (data, context) => {
 
   let query = db.collection("listings").where("status", "==", "active");
 
-  if (area) query = query.where("area", "==", area);
-  if (landType) query = query.where("landType", "==", landType);
-  if (minPrice) query = query.where("price", ">=", minPrice);
-  if (maxPrice) query = query.where("price", "<=", maxPrice);
-  if (minSize) query = query.where("size", ">=", minSize);
-  if (maxSize) query = query.where("size", "<=", maxSize);
+  // فلتر المحافظة بالمسافة الجغرافية بدل المقارنة النصية
+  const govCenter =
+    area && area !== "All Areas" ? GOVERNORATE_CENTERS[area] : null;
 
-  query = query.orderBy("createdAt", "desc").limit(pageSize + 1);
+  if (landType) query = query.where("landType", "==", landType);
+
+  const hasPriceFilter = minPrice != null || maxPrice != null;
+  const hasSizeFilter = minSize != null || maxSize != null;
+
+  if (hasPriceFilter) {
+    if (minPrice != null) query = query.where("price", ">=", minPrice);
+    if (maxPrice != null) query = query.where("price", "<=", maxPrice);
+    query = query.orderBy("price", "asc").orderBy("createdAt", "desc");
+  } else if (hasSizeFilter) {
+    if (minSize != null) query = query.where("size", ">=", minSize);
+    if (maxSize != null) query = query.where("size", "<=", maxSize);
+    query = query.orderBy("size", "asc").orderBy("createdAt", "desc");
+  } else {
+    query = query.orderBy("createdAt", "desc");
+  }
+
+  // نجيب أكثر للفلترة الجغرافية لأننا سنفلتر بعد الجلب
+  const fetchLimit = govCenter ? (pageSize + 1) * 5 : pageSize + 1;
+  query = query.limit(fetchLimit);
 
   if (lastDocId) {
     const lastDoc = await db.collection("listings").doc(lastDocId).get();
@@ -163,12 +205,29 @@ exports.getListings = functions.https.onCall(async (data, context) => {
   }
 
   const snap = await query.get();
-  const hasMore = snap.docs.length > pageSize;
-  const docs = hasMore ? snap.docs.slice(0, pageSize) : snap.docs;
+  let docs = snap.docs;
+
+  // فلترة جغرافية بالمسافة
+  if (govCenter) {
+    docs = docs.filter((d) => {
+      const listing = d.data();
+      if (listing.latitude == null || listing.longitude == null) return false;
+      const dist = distanceKm(
+        govCenter.lat,
+        govCenter.lng,
+        listing.latitude,
+        listing.longitude,
+      );
+      return dist <= govCenter.radiusKm;
+    });
+  }
+
+  const hasMore = docs.length > pageSize;
+  const finalDocs = hasMore ? docs.slice(0, pageSize) : docs;
 
   return {
-    listings: docs.map((d) => ({ id: d.id, ...d.data() })),
-    nextDocId: hasMore ? docs[docs.length - 1].id : null,
+    listings: finalDocs.map((d) => ({ id: d.id, ...d.data() })),
+    nextDocId: hasMore ? finalDocs[finalDocs.length - 1].id : null,
     hasMore,
   };
 });
