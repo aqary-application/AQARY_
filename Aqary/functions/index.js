@@ -762,13 +762,18 @@ exports.adminGetPremiumRequests = functions.https.onCall(
       throw new functions.https.HttpsError("permission-denied", "Admins only");
 
     const { statuses } = data || {};
-    let query = db.collection("users").where("role", "==", "buyer");
 
-    const snap = await query.get();
+    // Show premium requests from ALL users regardless of role
+    // (buyer, provider, seller, ...) — not just buyers.
+    const snap = await db.collection("users").get();
     let users = snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
 
     if (statuses && statuses.length > 0) {
       users = users.filter((u) => statuses.includes(u.subscriptionStatus));
+    } else {
+      // No statuses requested: still only return users who actually have
+      // a subscription status set (avoid dumping every user in the app).
+      users = users.filter((u) => !!u.subscriptionStatus);
     }
 
     return { users };
