@@ -63,77 +63,113 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _onNotificationTap(AppNotification n) async {
-    await NotificationService.instance.markAsRead(n.id);
+    // markAsRead is best-effort: if Firestore rules reject this write
+    // (e.g. notifications are meant to be read-only from the client),
+    // we must NOT let it block navigation below.
+    try {
+      await NotificationService.instance.markAsRead(n.id);
+    } catch (e) {
+      debugPrint('markAsRead failed for ${n.id}: $e');
+    }
 
     if (!mounted) return;
 
-    switch (n.type) {
-      case 'new_listing':
-      case 'premium_new_listing':
-      case 'listing_updated':
-      case 'premium_listing_updated':
-      case 'contact_approved':
-      case 'contact_rejected':
-        if (n.linkedId == null) return;
-        final listing = await ListingService.instance.getListing(n.linkedId!);
-        if (listing != null && mounted) {
+    try {
+      switch (n.type) {
+        case 'new_listing':
+        case 'premium_new_listing':
+        case 'listing_updated':
+        case 'premium_listing_updated':
+        case 'contact_approved':
+        case 'contact_rejected':
+          if (n.linkedId == null) return;
+          final listing = await ListingService.instance.getListing(n.linkedId!);
+          if (listing != null && mounted) {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => LandDetailsScreen(listing: listing),
+              ),
+            );
+          } else if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  content: Text('This listing is no longer available')),
+            );
+          }
+          break;
+
+        case 'contact_request_update':
+          if (n.linkedId == null) return;
+          // linkedId هنا هو contact request ID، نجيب منه listingId
+          final requestDoc = await Firebase.firestore
+              .collection('contact_requests')
+              .doc(n.linkedId!)
+              .get();
+
+          if (!requestDoc.exists) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('This request no longer exists')),
+              );
+            }
+            return;
+          }
+
+          final reqListingId = requestDoc.data()?['listingId'] as String?;
+          if (reqListingId == null) return;
+          final reqListing =
+              await ListingService.instance.getListing(reqListingId);
+          if (reqListing != null && mounted) {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => LandDetailsScreen(listing: reqListing),
+              ),
+            );
+          } else if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  content: Text('This listing is no longer available')),
+            );
+          }
+          break;
+
+        case 'contact_request':
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => LandDetailsScreen(listing: listing),
+              builder: (_) => SellerHomeScreen(focusListingId: n.linkedId),
             ),
           );
-        }
-        break;
+          break;
 
-      case 'contact_request_update':
-        if (n.linkedId == null) return;
-        // linkedId هنا هو contact request ID، نجيب منه listingId
-        final requestDoc = await Firebase.firestore
-            .collection('contact_requests')
-            .doc(n.linkedId!)
-            .get();
-        final reqListingId = requestDoc.data()?['listingId'] as String?;
-        if (reqListingId == null) return;
-        final reqListing =
-            await ListingService.instance.getListing(reqListingId);
-        if (reqListing != null && mounted) {
+        case 'provider_broadcast':
+          if (n.linkedId == null) return;
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => LandDetailsScreen(listing: reqListing),
+              builder: (_) => ProviderDetailsScreen(providerId: n.linkedId!),
             ),
           );
-        }
-        break;
+          break;
 
-      case 'contact_request':
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => SellerHomeScreen(focusListingId: n.linkedId),
-          ),
+        case 'seller_broadcast':
+          if (n.linkedId == null) return;
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => SellerPublicListingsScreen(sellerId: n.linkedId!),
+            ),
+          );
+          break;
+
+        case 'broadcast':
+        default:
+          break;
+      }
+    } catch (e) {
+      debugPrint('Notification tap navigation failed for type ${n.type}: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open this notification: $e')),
         );
-        break;
-
-      case 'provider_broadcast':
-        if (n.linkedId == null) return;
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => ProviderDetailsScreen(providerId: n.linkedId!),
-          ),
-        );
-        break;
-
-      case 'seller_broadcast':
-        if (n.linkedId == null) return;
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => SellerPublicListingsScreen(sellerId: n.linkedId!),
-          ),
-        );
-        break;
-
-      case 'broadcast':
-      default:
-        break;
+      }
     }
   }
 

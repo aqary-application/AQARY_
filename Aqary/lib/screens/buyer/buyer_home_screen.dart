@@ -41,8 +41,7 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen>
 
   static LatLng _amman = const LatLng(31.9539, 35.9106);
   LatLng _mapCenter = _amman;
-  // String? get _uid => Firebase.auth.currentUser?.uid; // Uncomment when needed
-  String? get _uid => "dummy_uid"; // Placeholder for UI testing
+  String? get _uid => Firebase.auth.currentUser?.uid;
 
   @override
   void initState() {
@@ -731,9 +730,7 @@ class _Chip extends StatelessWidget {
               fontWeight: FontWeight.w500)));
 }
 
-// =========================================================================
-// التصاميم الجديدة المخصصة لـ Pin الخريطة (مستطيل ذو حواف مع بروز سفلي)
-// =========================================================================
+
 
 class _ModernPricePin extends StatelessWidget {
   final String price;
@@ -743,13 +740,13 @@ class _ModernPricePin extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // يتغير اللون بناءً على ما إذا كان المستخدم قد حدد العقار أم لا
+
     final color = isSelected ? AppTheme.accent : AppTheme.primary;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // المستطيل الذي يحتوي على السعر
+       
         AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
