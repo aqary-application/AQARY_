@@ -10,6 +10,7 @@ import '../../services/services.dart';
 import '../../widgets/app_map.dart';
 import 'provider_broadcast_screen.dart';
 import '../buyer/notifications_screen.dart';
+import 'provider_notifications_screen.dart';
 
 class ProviderProfileScreen extends StatefulWidget {
   final bool isEditing;
@@ -173,7 +174,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                     tooltip: 'Notifications',
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => const NotificationsScreen(),
+                        builder: (_) => const ProviderNotificationsScreen(),
                       ),
                     ),
                   ),

@@ -433,36 +433,38 @@ exports.getNearbyProviders = functions.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError("unauthenticated", "Login required");
 
   const { lat, lng, type, radiusKm = 50 } = data;
-  if (lat == null || lng == null)
-    throw new functions.https.HttpsError(
-      "invalid-argument",
-      "lat and lng required",
-    );
 
-  const delta = radiusKm / 111;
-
-  // isHidden أولاً، ثم type (equality)، ثم latitude (range)
+  // جلب كل البروفايدرز مع فلتر النوع إذا موجود
   let query = db.collection("providers").where("isHidden", "==", false);
-
   if (type) query = query.where("type", "==", type);
 
-  query = query
-    .where("latitude", ">=", lat - delta)
-    .where("latitude", "<=", lat + delta);
-
   const snap = await query.get();
-  const lngDelta = radiusKm / (111 * Math.cos((lat * Math.PI) / 180));
+  let providers = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-  const providers = snap.docs
-    .map((d) => ({ id: d.id, ...d.data() }))
-    .filter((p) => Math.abs(p.longitude - lng) <= lngDelta)
-    .map((p) => {
-      const dLat = p.latitude - lat;
-      const dLng = p.longitude - lng;
-      p.distanceKm = Math.sqrt(dLat * dLat + dLng * dLng) * 111;
-      return p;
-    })
-    .sort((a, b) => a.distanceKm - b.distanceKm);
+  // إذا في موقع نحسب المسافة ونرتب، وإذا ما رجع أحد نرجع الكل
+  if (lat != null && lng != null) {
+    const delta = radiusKm / 111;
+    const lngDelta = radiusKm / (111 * Math.cos((lat * Math.PI) / 180));
+
+    const nearby = providers
+      .filter(
+        (p) =>
+          p.latitude != null &&
+          p.longitude != null &&
+          Math.abs(p.latitude - lat) <= delta &&
+          Math.abs(p.longitude - lng) <= lngDelta,
+      )
+      .map((p) => {
+        const dLat = p.latitude - lat;
+        const dLng = p.longitude - lng;
+        p.distanceKm = Math.sqrt(dLat * dLat + dLng * dLng) * 111;
+        return p;
+      })
+      .sort((a, b) => a.distanceKm - b.distanceKm);
+
+    // لو في نتائج قريبة نستخدمها، وإلا نرجع الكل
+    if (nearby.length > 0) providers = nearby;
+  }
 
   return { providers };
 });
@@ -719,8 +721,8 @@ exports.requestPremiumSubscription = functions.https.onCall(
       throw new functions.https.HttpsError("not-found", "User not found");
 
     const user = userDoc.data();
-    if (user.role !== "buyer")
-      throw new functions.https.HttpsError("permission-denied", "Buyers only");
+    if (!["buyer", "seller", "provider"].includes(user.role))
+      throw new functions.https.HttpsError("permission-denied", "Not allowed");
 
     await db.collection("users").doc(uid).update({
       subscriptionStatus: "pending",

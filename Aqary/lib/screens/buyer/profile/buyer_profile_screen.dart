@@ -15,7 +15,8 @@ class BuyerProfileScreen extends StatelessWidget {
     final currentUser = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA), // Professional light grey background
+      backgroundColor:
+          const Color(0xFFF8F9FA), // Professional light grey background
       appBar: AppBar(
         title: const Text(
           'Profile',
@@ -62,8 +63,10 @@ class BuyerProfileScreen extends StatelessWidget {
                     'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png';
 
                 if (snapshot.hasData && snapshot.data!.exists) {
-                  final userData = snapshot.data!.data() as Map<String, dynamic>;
-                  userName = userData['name'] ?? userData['fullName'] ?? userName;
+                  final userData =
+                      snapshot.data!.data() as Map<String, dynamic>;
+                  userName =
+                      userData['name'] ?? userData['fullName'] ?? userName;
                   userEmail = userData['email'] ?? userEmail;
                   profileImage = userData['profileImageUrl'] ?? profileImage;
                 }
@@ -81,7 +84,7 @@ class BuyerProfileScreen extends StatelessWidget {
                         profileImage: profileImage,
                       ),
                       const SizedBox(height: 30),
-                      
+
                       // Settings List Section
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -99,11 +102,15 @@ class BuyerProfileScreen extends StatelessWidget {
                           ),
                           child: Column(
                             children: [
-                            _buildListTile(
+                              _buildListTile(
                                 icon: Icons.favorite_border_rounded,
                                 title: 'Favorite Lands',
                                 onTap: () {
-                                  Navigator.push(context, MaterialPageRoute(builder: (context) => const FavoritesScreen()));
+                                  Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (context) =>
+                                              const FavoritesScreen()));
                                 },
                               ),
                               _buildDivider(),
@@ -111,7 +118,11 @@ class BuyerProfileScreen extends StatelessWidget {
                                 icon: Icons.notifications_none_rounded,
                                 title: 'Notifications',
                                 onTap: () {
-                                  Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationsScreen()));
+                                  Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (context) =>
+                                              const NotificationsScreen()));
                                 },
                               ),
                               _buildDivider(),
@@ -120,7 +131,11 @@ class BuyerProfileScreen extends StatelessWidget {
                                 title: 'Premium pins',
                                 iconColor: Colors.amber[600],
                                 onTap: () {
-                                  Navigator.push(context, MaterialPageRoute(builder: (context) => const PremiumPinsScreen()));
+                                  Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (context) =>
+                                              const PremiumPinsScreen()));
                                 },
                               ),
                               _buildDivider(),
@@ -133,7 +148,9 @@ class BuyerProfileScreen extends StatelessWidget {
                                   if (context.mounted) {
                                     // تنظيف مكدس الشاشات وتوجيه المستخدم لشاشة تسجيل الدخول
                                     Navigator.of(context).pushAndRemoveUntil(
-                                      MaterialPageRoute(builder: (context) => const LoginScreen()), 
+                                      MaterialPageRoute(
+                                          builder: (context) =>
+                                              const LoginScreen()),
                                       (Route<dynamic> route) => false,
                                     );
                                   }
@@ -164,7 +181,8 @@ class BuyerProfileScreen extends StatelessWidget {
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFF1E5670).withOpacity(0.2), width: 3),
+              border: Border.all(
+                  color: const Color(0xFF1E5670).withOpacity(0.2), width: 3),
             ),
             child: CircleAvatar(
               radius: 55,
@@ -224,7 +242,8 @@ class BuyerProfileScreen extends StatelessWidget {
                 backgroundColor: const Color(0xFF1E5670),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(25), // زيادة الدوران لجعله بيضاوياً وأكثر أناقة
+                  borderRadius: BorderRadius.circular(
+                      25), // زيادة الدوران لجعله بيضاوياً وأكثر أناقة
                 ),
                 elevation: 0,
               ),
@@ -259,7 +278,8 @@ class BuyerProfileScreen extends StatelessWidget {
     required VoidCallback onTap,
   }) {
     final defaultColor = const Color(0xFF1E5670);
-    final activeColor = isDestructive ? Colors.redAccent : (iconColor ?? defaultColor);
+    final activeColor =
+        isDestructive ? Colors.redAccent : (iconColor ?? defaultColor);
 
     return Material(
       color: Colors.transparent,

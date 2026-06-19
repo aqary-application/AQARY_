@@ -1,56 +1,37 @@
-/*import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import '../../services/services.dart';
-import '../../models/models.dart'; // تأكد من مسار النماذج
-// import '../../widgets/provider_nav_bar.dart'; // قم بفك التعليق إذا كان لديك شريط تنقل خاص بمقدم الخدمة
+import '../buyer/notifications_screen.dart';
 
 class ProviderNotificationsScreen extends StatefulWidget {
   const ProviderNotificationsScreen({super.key});
 
   @override
-  State<ProviderNotificationsScreen> createState() => _ProviderNotificationsScreenState();
+  State<ProviderNotificationsScreen> createState() =>
+      _ProviderNotificationsScreenState();
 }
 
-class _ProviderNotificationsScreenState extends State<ProviderNotificationsScreen> {
+class _ProviderNotificationsScreenState
+    extends State<ProviderNotificationsScreen> {
   String? get _uid => Firebase.auth.currentUser?.uid;
-  int _unreadCount = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    if (_uid != null) {
-      NotificationService.instance.watchUnreadCount(_uid!).listen(
-        (count) {
-          if (mounted) setState(() => _unreadCount = count);
-        },
-      );
-    }
-  }
-
-  // ... (نفس Imports السابقة)
 
   Future<void> _onNotificationTap(AppNotification n) async {
     await NotificationService.instance.markAsRead(n.id);
     if (!mounted) return;
 
-    // بما أن الإشعارات من الأدمن فقط، التوجيه يكون بسيطاً
     switch (n.type) {
       case 'admin_alert':
-        // يمكنك توجيهه لصفحة "إعلانات الأدمن" أو صفحة تفاصيل معينة
         break;
       case 'account_status':
-        // مثلاً توجيهه لصفحة ملفه الشخصي ليرى حالة التوثيق
         break;
       default:
-        // في حال لم يكن هناك توجيه، لا تفعل شيئاً
         break;
     }
   }
 
   IconData _iconForType(String type) => switch (type) {
-        'admin_alert' => Icons.campaign_rounded, // أيقونة إعلان
-        'account_status' => Icons.verified_user_rounded, // أيقونة توثيق
+        'admin_alert' => Icons.campaign_rounded,
+        'account_status' => Icons.verified_user_rounded,
         _ => Icons.notifications_rounded,
       };
 
@@ -78,95 +59,96 @@ class _ProviderNotificationsScreenState extends State<ProviderNotificationsScree
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC), // خلفية ناعمة جداً تبرز البطاقات
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         automaticallyImplyLeading: false,
         elevation: 0,
         backgroundColor: AppTheme.primary,
-        title: const Text(
-          'Notifications',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              color: Colors.white, size: 22),
+          onPressed: () => Navigator.of(context).pop(),
         ),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.notifications_rounded,
+                color: Colors.white, size: 24),
+          ],
+        ),
+        centerTitle: false,
         actions: [
           TextButton.icon(
             onPressed: () => NotificationService.instance.markAllAsRead(_uid!),
-            icon: const Icon(Icons.done_all_rounded, color: Colors.white, size: 18),
+            icon: const Icon(Icons.done_all_rounded,
+                color: Colors.white, size: 18),
             label: const Text(
               'Mark all read',
-              style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600),
             ),
           ),
           IconButton(
-            onPressed: () => NotificationService.instance.deleteAllNotifications(_uid!),
-            icon: const Icon(Icons.delete_sweep_rounded, color: Colors.white, size: 24),
+            onPressed: () =>
+                NotificationService.instance.deleteAllNotifications(_uid!),
+            icon: const Icon(Icons.delete_sweep_rounded,
+                color: Colors.white, size: 24),
             tooltip: 'Delete all',
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          StreamBuilder<List<AppNotification>>(
-            stream: NotificationService.instance.watchNotifications(_uid!),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
+      body: StreamBuilder<List<AppNotification>>(
+        stream: NotificationService.instance.watchNotifications(_uid!),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-              if (snapshot.hasError) {
-                return Center(
-                  child: Text(
-                    "Error: ${snapshot.error}",
-                    style: const TextStyle(color: AppTheme.error),
+          if (snapshot.hasError) {
+            return Center(
+              child: Text(
+                'Error: ${snapshot.error}',
+                style: const TextStyle(color: AppTheme.error),
+              ),
+            );
+          }
+
+          final notifications = snapshot.data ?? [];
+
+          if (notifications.isEmpty) {
+            return _buildEmptyState();
+          }
+
+          return ListView.separated(
+            padding: const EdgeInsets.only(
+                left: 16, right: 16, top: 20, bottom: 100),
+            itemCount: notifications.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (context, index) {
+              final n = notifications[index];
+
+              return Dismissible(
+                key: ValueKey(n.id),
+                direction: DismissDirection.endToStart,
+                onDismissed: (_) =>
+                    NotificationService.instance.deleteNotification(n.id),
+                background: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  decoration: BoxDecoration(
+                    color: AppTheme.error,
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                );
-              }
-
-              final notifications = snapshot.data ?? [];
-
-              if (notifications.isEmpty) {
-                return _buildEmptyState();
-              }
-
-              return ListView.separated(
-                padding: const EdgeInsets.only(left: 16, right: 16, top: 20, bottom: 100),
-                itemCount: notifications.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final n = notifications[index];
-
-                  return Dismissible(
-                    key: ValueKey(n.id),
-                    direction: DismissDirection.endToStart,
-                    onDismissed: (_) => NotificationService.instance.deleteNotification(n.id),
-                    background: Container(
-                      alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      decoration: BoxDecoration(
-                        color: AppTheme.error,
-                        borderRadius: BorderRadius.circular(16), // حواف أكثر نعومة
-                      ),
-                      child: const Icon(Icons.delete_outline_rounded, color: Colors.white, size: 28),
-                    ),
-                    child: _buildNotificationCard(n),
-                  );
-                },
+                  child: const Icon(Icons.delete_outline_rounded,
+                      color: Colors.white, size: 28),
+                ),
+                child: _buildNotificationCard(n),
               );
             },
-          ),
-
-          // الناف بار (قم بتعديله ليناسب ProviderNavBar إذا كان موجوداً لديك)
-          /*
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: ProviderNavBar(
-              currentIndex: 3, // تعديل حسب ترتيب صفحة الإشعارات
-              unreadCount: _unreadCount,
-            ),
-          ),
-          */
-        ],
+          );
+        },
       ),
     );
   }
@@ -191,13 +173,11 @@ class _ProviderNotificationsScreenState extends State<ProviderNotificationsScree
           ),
           const SizedBox(height: 24),
           const Text(
-            'All caught up!',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textDark),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'You have no new notifications.',
-            style: TextStyle(fontSize: 15, color: AppTheme.textMuted),
+            'No notifications yet',
+            style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textDark),
           ),
         ],
       ),
@@ -209,10 +189,13 @@ class _ProviderNotificationsScreenState extends State<ProviderNotificationsScree
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
       decoration: BoxDecoration(
-        color: n.isRead ? Colors.white : AppTheme.primary.withValues(alpha: 0.04),
+        color:
+            n.isRead ? Colors.white : AppTheme.primary.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: n.isRead ? Colors.transparent : AppTheme.primary.withValues(alpha: 0.15),
+          color: n.isRead
+              ? Colors.transparent
+              : AppTheme.primary.withValues(alpha: 0.15),
           width: 1.5,
         ),
         boxShadow: n.isRead
@@ -223,7 +206,7 @@ class _ProviderNotificationsScreenState extends State<ProviderNotificationsScree
                   offset: const Offset(0, 4),
                 )
               ]
-            : [], // بدون ظل إذا كان غير مقروء لتعزيز تأثير الخلفية الملونة
+            : [],
       ),
       child: Material(
         color: Colors.transparent,
@@ -235,7 +218,6 @@ class _ProviderNotificationsScreenState extends State<ProviderNotificationsScree
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // الأيقونة الدائرية
                 Container(
                   width: 48,
                   height: 48,
@@ -250,8 +232,6 @@ class _ProviderNotificationsScreenState extends State<ProviderNotificationsScree
                   ),
                 ),
                 const SizedBox(width: 16),
-                
-                // النصوص (العنوان والتفاصيل)
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -265,7 +245,9 @@ class _ProviderNotificationsScreenState extends State<ProviderNotificationsScree
                               style: TextStyle(
                                 fontSize: 15,
                                 height: 1.2,
-                                fontWeight: n.isRead ? FontWeight.w600 : FontWeight.w800,
+                                fontWeight: n.isRead
+                                    ? FontWeight.w600
+                                    : FontWeight.w800,
                                 color: AppTheme.textDark,
                               ),
                             ),
@@ -287,7 +269,9 @@ class _ProviderNotificationsScreenState extends State<ProviderNotificationsScree
                         style: TextStyle(
                           fontSize: 14,
                           height: 1.4,
-                          color: n.isRead ? AppTheme.textMuted : AppTheme.textDark.withValues(alpha: 0.8),
+                          color: n.isRead
+                              ? AppTheme.textMuted
+                              : AppTheme.textDark.withValues(alpha: 0.8),
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -297,7 +281,7 @@ class _ProviderNotificationsScreenState extends State<ProviderNotificationsScree
                         Row(
                           children: [
                             Text(
-                              'View details', // نص عام أو يمكن تخصيصه حسب النوع
+                              'View details',
                               style: TextStyle(
                                 fontSize: 13,
                                 color: AppTheme.primary,
@@ -305,15 +289,14 @@ class _ProviderNotificationsScreenState extends State<ProviderNotificationsScree
                               ),
                             ),
                             const SizedBox(width: 4),
-                            Icon(Icons.arrow_forward_rounded, size: 14, color: AppTheme.primary),
+                            Icon(Icons.arrow_forward_rounded,
+                                size: 14, color: AppTheme.primary),
                           ],
                         ),
                       ],
                     ],
                   ),
                 ),
-                
-                // نقطة الإشعار غير المقروء
                 if (!n.isRead)
                   Container(
                     width: 10,
@@ -332,5 +315,3 @@ class _ProviderNotificationsScreenState extends State<ProviderNotificationsScree
     );
   }
 }
-
-*/
